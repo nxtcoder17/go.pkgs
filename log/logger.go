@@ -1,6 +1,9 @@
 package log
 
-import "io"
+import (
+	"io"
+	"log/slog"
+)
 
 type Logger interface {
 	Debug(msg string, kv ...any)
@@ -10,6 +13,8 @@ type Logger interface {
 	Fatal(msg string, kv ...any)
 
 	With(kv ...any) Logger
+
+	Slog() *slog.Logger
 }
 
 type Options struct {

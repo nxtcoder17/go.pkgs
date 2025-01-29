@@ -1,13 +1,15 @@
 package log
 
 import (
+	"log/slog"
 	"os"
 
 	"github.com/rs/zerolog"
+	slogzerolog "github.com/samber/slog-zerolog/v2"
 )
 
 type ZeroLogger struct {
-	log zerolog.Logger
+	logger zerolog.Logger
 }
 
 func New(opts Options) Logger {
@@ -60,31 +62,35 @@ func New(opts Options) Logger {
 		zctx = zctx.CallerWithSkipFrameCount(3)
 	}
 
-	return &ZeroLogger{log: zctx.Logger().Level(level)}
+	return &ZeroLogger{logger: zctx.Logger().Level(level)}
 }
 
 func (zl *ZeroLogger) Debug(msg string, kv ...any) {
-	zl.log.Debug().Fields(kv).Msg(msg)
+	zl.logger.Debug().Fields(kv).Msg(msg)
 }
 
 func (zl *ZeroLogger) Info(msg string, kv ...any) {
-	zl.log.Info().Fields(kv).Msg(msg)
+	zl.logger.Info().Fields(kv).Msg(msg)
 }
 
 func (zl *ZeroLogger) Warn(msg string, kv ...any) {
-	zl.log.Warn().Fields(kv).Msg(msg)
+	zl.logger.Warn().Fields(kv).Msg(msg)
 }
 
 func (zl *ZeroLogger) Error(err error, msg string, kv ...any) {
-	zl.log.Error().Fields(kv).Err(err).Msg(msg)
+	zl.logger.Error().Fields(kv).Err(err).Msg(msg)
 }
 
 func (zl *ZeroLogger) Fatal(msg string, kv ...any) {
-	zl.log.Fatal().Fields(kv).Msg(msg)
+	zl.logger.Fatal().Fields(kv).Msg(msg)
 }
 
-// With implements Logger.
 func (zl *ZeroLogger) With(kv ...any) Logger {
-	log := zl.log.With().Fields(kv).Logger()
-	return &ZeroLogger{log: log}
+	log := zl.logger.With().Fields(kv).Logger()
+	return &ZeroLogger{logger: log}
+}
+
+func (zl *ZeroLogger) Slog() *slog.Logger {
+	l := zl.logger.With().CallerWithSkipFrameCount(2).Logger()
+	return slog.New(slogzerolog.Option{Logger: &l}.NewZerologHandler())
 }
