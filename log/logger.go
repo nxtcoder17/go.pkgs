@@ -15,6 +15,8 @@ type Logger interface {
 
 	With(kv ...any) Logger
 
+	SkipFrames(skip int) Logger
+
 	Slog() *slog.Logger
 }
 

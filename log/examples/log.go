@@ -36,5 +36,7 @@ func main() {
 	l.Warn("Hello")
 	l.Error(err, "msg", fmt.Errorf("this is an error"))
 
-	x(l.Slog())
+	sl := l.SkipFrames(1).Slog()
+	sl.Info("with slog")
+	x(sl)
 }

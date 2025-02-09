@@ -13,7 +13,8 @@ import (
 )
 
 type ZeroLogger struct {
-	logger *zerolog.Logger
+	logger     *zerolog.Logger
+	skipFrames int
 }
 
 func New(options ...Options) Logger {
@@ -79,12 +80,17 @@ func New(options ...Options) Logger {
 
 	zctx := zerolog.New(writer).With().Timestamp()
 
+	skipFrames := 2 + 1 // 2 because of zerolog and 1 because i am creating a helper function
+
 	if opts.ShowCaller {
-		zctx = zctx.CallerWithSkipFrameCount(2 + 1) // 2 because of zerolog and 1 because i am creating a helper function
+		zctx = zctx.CallerWithSkipFrameCount(skipFrames)
 	}
 
 	logger := zctx.Logger().Level(level)
-	return &ZeroLogger{logger: &logger}
+	return &ZeroLogger{
+		logger:     &logger,
+		skipFrames: skipFrames,
+	}
 }
 
 func (zl *ZeroLogger) Debug(msg string, kv ...any) {
@@ -107,13 +113,19 @@ func (zl *ZeroLogger) Fatal(msg string, kv ...any) {
 	zl.logger.Fatal().Fields(kv).Msg(msg)
 }
 
+func (zl *ZeroLogger) SkipFrames(skip int) Logger {
+	l := zl.logger.With().CallerWithSkipFrameCount(zl.skipFrames + skip).Logger()
+	return &ZeroLogger{logger: &l, skipFrames: zl.skipFrames + skip}
+}
+
 func (zl *ZeroLogger) With(kv ...any) Logger {
 	log := zl.logger.With().Fields(kv).Logger()
 	return &ZeroLogger{logger: &log}
 }
 
 func (zl *ZeroLogger) Slog() *slog.Logger {
-	l := zl.logger.With().CallerWithSkipFrameCount(2).Logger()
+	// l := zl.logger.With().CallerWithSkipFrameCount(3).Logger()
+	l := zl.logger.With().CallerWithSkipFrameCount(zl.skipFrames + 2).Logger()
 	slogzerolog.ErrorKeys = []string{"error", "err"}
 	return slog.New(slogzerolog.Option{
 		Logger: &l,
