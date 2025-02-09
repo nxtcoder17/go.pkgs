@@ -3,6 +3,7 @@ package log
 import (
 	"io"
 	"log/slog"
+	"os"
 )
 
 type Logger interface {
@@ -18,10 +19,30 @@ type Logger interface {
 }
 
 type Options struct {
+	// Writer defaults to os.Stderr
 	Writer io.Writer
 
+	// ShowTimestamp defaults to false
 	ShowTimestamp bool
-	ShowCaller    bool
+
+	// ShowCaller defaults to true
+	ShowCaller bool
+
+	// ShowDebugLogs defaults to false
 	ShowDebugLogs bool
-	ShowLogLevel  bool
+
+	// ShowLogLevel defaults to true
+	ShowLogLevel bool
+
+	// JSONFormat does JSON formatted logs
+	JSONFormat bool
+}
+
+var defaultOptions = Options{
+	Writer:        os.Stderr,
+	ShowTimestamp: false,
+	ShowCaller:    true,
+	ShowDebugLogs: false,
+	ShowLogLevel:  true,
+	JSONFormat:    false,
 }

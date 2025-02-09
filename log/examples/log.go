@@ -16,10 +16,11 @@ func x(l *slog.Logger) {
 
 func main() {
 	logger := log.New(log.Options{
-		ShowTimestamp: false,
 		ShowCaller:    true,
+		ShowTimestamp: false,
 		ShowLogLevel:  true,
 		ShowDebugLogs: false,
+		JSONFormat:    false,
 	})
 	err := fmt.Errorf("this is an error")
 
@@ -35,6 +36,5 @@ func main() {
 	l.Warn("Hello")
 	l.Error(err, "msg", fmt.Errorf("this is an error"))
 
-	// sl := l.Slog()
 	x(l.Slog())
 }

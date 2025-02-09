@@ -1,19 +1,29 @@
 package log
 
 import (
+	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog"
+	slogcommon "github.com/samber/slog-common"
 	slogzerolog "github.com/samber/slog-zerolog/v2"
 )
 
 type ZeroLogger struct {
-	logger zerolog.Logger
+	logger *zerolog.Logger
 }
 
-func New(opts Options) Logger {
+func New(options ...Options) Logger {
 	exclude := make([]string, 2)
+
+	opts := defaultOptions
+
+	if len(options) >= 1 {
+		opts = options[0]
+	}
 
 	if !opts.ShowTimestamp {
 		exclude = append(exclude, zerolog.TimestampFieldName)
@@ -27,16 +37,27 @@ func New(opts Options) Logger {
 		opts.Writer = os.Stderr
 	}
 
-	output := zerolog.ConsoleWriter{Out: opts.Writer, PartsExclude: exclude}
+	writer := func() io.Writer {
+		if !opts.JSONFormat {
+			return zerolog.ConsoleWriter{
+				Out:          opts.Writer,
+				PartsExclude: exclude,
+				TimeFormat:   time.RFC822,
+				FormatCaller: func(caller any) string {
+					switch c := caller.(type) {
+					case string:
+						return fmt.Sprintf("| %s |", trimPath(c, 2))
+					default:
+						return "« invalid caller type » " + fmt.Sprintf("%v", c)
+					}
+				},
+			}
+		}
 
-	// output.FormatLevel = func(level any) string {
-	// 	return strings.ToUpper(fmt.Sprintf("%-6s", level))
-	// }
+		return os.Stderr
+	}()
 
-	// output.FormatCaller = func(caller any) string {
-	// 	return fmt.Sprintf("| %s |", caller)
-	// }
-
+	zerolog.TimeFieldFormat = time.RFC822
 	zerolog.ErrorFieldName = "err"
 	zerolog.FormattedLevels = map[zerolog.Level]string{
 		zerolog.TraceLevel: "TRACE",
@@ -47,22 +68,23 @@ func New(opts Options) Logger {
 		zerolog.FatalLevel: "FATAL",
 	}
 
-	// output.FormatMessage = func(i interface{}) string {
-	// 	return fmt.Sprintf(" %s", i)
-	// }
-	//
+	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+		return fmt.Sprintf("%s:%d", trimPath(file, 2), line)
+	}
+
 	level := zerolog.InfoLevel
 	if opts.ShowDebugLogs {
 		level = zerolog.DebugLevel
 	}
 
-	zctx := zerolog.New(output).With()
+	zctx := zerolog.New(writer).With().Timestamp()
 
 	if opts.ShowCaller {
-		zctx = zctx.CallerWithSkipFrameCount(3)
+		zctx = zctx.CallerWithSkipFrameCount(2 + 1) // 2 because of zerolog and 1 because i am creating a helper function
 	}
 
-	return &ZeroLogger{logger: zctx.Logger().Level(level)}
+	logger := zctx.Logger().Level(level)
+	return &ZeroLogger{logger: &logger}
 }
 
 func (zl *ZeroLogger) Debug(msg string, kv ...any) {
@@ -87,10 +109,28 @@ func (zl *ZeroLogger) Fatal(msg string, kv ...any) {
 
 func (zl *ZeroLogger) With(kv ...any) Logger {
 	log := zl.logger.With().Fields(kv).Logger()
-	return &ZeroLogger{logger: log}
+	return &ZeroLogger{logger: &log}
 }
 
 func (zl *ZeroLogger) Slog() *slog.Logger {
 	l := zl.logger.With().CallerWithSkipFrameCount(2).Logger()
-	return slog.New(slogzerolog.Option{Logger: &l}.NewZerologHandler())
+	slogzerolog.ErrorKeys = []string{"error", "err"}
+	return slog.New(slogzerolog.Option{
+		Logger: &l,
+
+		NoTimestamp: true,
+
+		// [source](https://github.com/samber/slog-zerolog/blob/11dde13940f914ffbdb501c69b3765069914abf1/converter.go#L14-L30)
+		Converter: func(addSource bool, replaceAttr func(groups []string, a slog.Attr) slog.Attr, loggerAttr []slog.Attr, groups []string, record *slog.Record) map[string]any {
+			// WHY? just makes things more like original logger
+
+			// aggregate all attributes
+			attrs := slogcommon.AppendRecordAttrsToAttrs(loggerAttr, groups, record)
+
+			// handler formatter
+			output := slogcommon.AttrsToMap(attrs...)
+
+			return output
+		},
+	}.NewZerologHandler())
 }
