@@ -39,4 +39,6 @@ func main() {
 	sl := l.SkipFrames(1).Slog()
 	sl.Info("with slog")
 	x(sl)
+
+	log.DefaultLogger().Info("with default logger")
 }

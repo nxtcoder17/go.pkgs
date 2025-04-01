@@ -17,7 +17,7 @@ type ZeroLogger struct {
 	skipFrames int
 }
 
-func New(options ...Options) Logger {
+func newZeroLogger(options ...Options) *ZeroLogger {
 	exclude := make([]string, 2)
 
 	opts := defaultOptions

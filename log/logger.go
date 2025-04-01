@@ -48,3 +48,21 @@ var defaultOptions = Options{
 	ShowLogLevel:  true,
 	JSONFormat:    false,
 }
+
+var defaultLogger Logger
+
+func SetDefaultLogger(l Logger) {
+	defaultLogger = l
+}
+
+func DefaultLogger() Logger {
+	if defaultLogger == nil {
+		defaultLogger = New()
+	}
+
+	return defaultLogger
+}
+
+func New(options ...Options) Logger {
+	return newZeroLogger(options...)
+}
